@@ -64,12 +64,12 @@ class GrowDeployService(object):
       ret_code = subprocess.call(
           ['grow', 'deploy', '--confirm', deploy_target, pod_path])
       if ret_code != 0:
-        return False
+        return {'success': False}
     finally:
       logging.info('removing %s', tmp_dir)
       shutil.rmtree(tmp_dir)
 
-    return True
+    return {'success': True}
 
 
 class HelloWorldHandler(webapp2.RequestHandler):
