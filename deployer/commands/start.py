@@ -108,7 +108,6 @@ class GrowService(object):
 class GitHubWebhookHandler(webapp2.RequestHandler):
 
   def post(self):
-    logger.info(self.request.body)
     data = json.loads(self.request.body)
     repo = data['repository']['full_name']
 
