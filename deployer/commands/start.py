@@ -79,7 +79,7 @@ class GrowService(object):
 
   @rpc.RpcMethod
   def AddWebhook(self, repo, host='github', branch='master', access_token=None,
-      deploy_target='default'):
+      deploy_target='default', webhook_secret=None):
     """Adds a webhook listener that triggers a deploy on push."""
     logger.info('adding webhook')
     if host != 'github':
@@ -90,6 +90,7 @@ class GrowService(object):
         'branch': branch,
         'access_token': access_token,
         'deploy_target': deploy_target,
+        'webhook_secret': webhook_secret,
     })
     config.set('webhooks', webhooks)
     return {'success': True}
@@ -99,13 +100,6 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 
   def post(self):
     logger.info(self.request.body)
-
-    # Verify signature.
-    if not self.is_signature_valid():
-      logger.info('invalid github webhook signature')
-      self.write_json(success=False)
-      return
-
     data = json.loads(self.request.body)
     repo = data['repository']['url'][8:]  # Remove "https://" from the url.
 
@@ -117,12 +111,20 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
     webhooks = config.get('webhooks')
     for webhook in webhooks:
       if webhook.get('repo') == repo and webhook.get('branch') == branch:
+        webhook_secret = webhook.get('webhook_secret')
+        if webhook_secret and not self.is_signature_valid(webhook_secret):
+          logger.info('invalid github webhook signature')
+          self.write_json(success=False)
+          return
+
         deploy_target = webhook.get('deploy_target') or 'default'
         access_token = webhook.get('access_token')
         grow_service.Deploy(repo, host='github', branch=branch,
             access_token=access_token, deploy_target=deploy_target)
+        self.write_json(success=True)
+        return
 
-  def is_signature_valid(self):
+  def is_signature_valid(self, webhook_secret):
     header = self.request.headers.get('X-Hub-Signature', None)
     if not header:
       return False
@@ -132,7 +134,6 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 
     # The GitHub webhook signature is the HMAC SHA1 hex digest with the secret
     # as its key.
-    webhook_secret = str(settings.get('github_webhook_secret'))
     payload = str(self.request.body)
     hash = hmac.new(webhook_secret, payload, hashlib.sha1).hexdigest()
     return signature == hash

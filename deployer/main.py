@@ -17,7 +17,7 @@ from deployer import logger
 @click.option('--port', default=8880, envvar='DEPLOYER_PORT')
 @click.pass_context
 def cli(ctx, host, port):
-  config_flags = config.get('flags')
+  config_flags = config.get('flags') or {}
   if 'host' in config_flags:
     host = config_flags['host']
   if 'port' in config_flags:
