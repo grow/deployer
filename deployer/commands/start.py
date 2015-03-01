@@ -154,7 +154,7 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 @click.command()
 @click.pass_context
 def start(ctx):
-  rpc.register_service('GrowService', GrowService)
+  rpc.register_service('GrowService', GrowService())
   app = webapp2.WSGIApplication([
       ('/_/github/webhook', GitHubWebhookHandler),
       ('/_/rpc', rpc.JsonRpcHandler),
