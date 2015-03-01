@@ -43,6 +43,11 @@ class GrowService(object):
           repos.
       deploy_target: The grow deployment target.
     """
+    self.deploy(repo, host=host, branch=branch, commit_id=commit_id,
+        access_token=access_token, deploy_target=deploy_target)
+
+  def deploy(self, repo, host='github', branch='master', commit_id=None,
+      access_token=None, deploy_target='default'):
     if host != 'github':
       raise Error('Only host="github" is currently supported.')
 
@@ -122,7 +127,7 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 
         deploy_target = webhook.get('deploy_target') or 'default'
         access_token = webhook.get('access_token')
-        grow_service.Deploy(repo, host='github', branch=branch,
+        grow_service.deploy(repo, host='github', branch=branch,
             access_token=access_token, deploy_target=deploy_target)
         self.write_json(success=True)
         return
