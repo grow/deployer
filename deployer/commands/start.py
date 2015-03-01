@@ -94,6 +94,7 @@ class GrowService(object):
       raise Error('Only host="github" is currently supported.')
     webhooks = config.get('webhooks') or []
     webhooks.append({
+        'host': host,
         'repo': repo,
         'branch': branch,
         'access_token': access_token,
@@ -109,7 +110,7 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
   def post(self):
     logger.info(self.request.body)
     data = json.loads(self.request.body)
-    repo = data['repository']['url'][8:]  # Remove "https://" from the url.
+    repo = data['repository']['full_name']
 
     # The branch name can be derived from the last part of the "ref", e.g.:
     # refs/head/<branch name>.
