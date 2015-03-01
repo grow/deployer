@@ -20,6 +20,10 @@ def error(*args, **kwargs):
   LOGGER.error(*args, **kwargs)
 
 
+def exception(*args, **kwargs):
+  LOGGER.exception(*args, **kwargs)
+
+
 def init():
   LOGGER.setLevel(logging.DEBUG)
   ch = logging.StreamHandler(sys.stderr)

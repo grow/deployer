@@ -18,20 +18,26 @@ sudo python setup.py install
 deployer start
 ```
 
-### Listen for GitHub changes and trigger a deploy
+Using a different port:
+
+```
+deployer --port=9999 start
+```
+
+### Listen for changes on a GitHub repo and trigger a grow deploy
 
 ```
 deployer add_webhook --repo=github.com/user/project --deploy_target=default
 ```
 
-### Specify an access token to use for private repos
+Specify an access token to use for private repos
 
 ```
 deployer add_webhook --repo=github.com/user/project \
   --access_token=$GITHUB_ACCESS_TOKEN --deploy_target=default
 ```
 
-### Specify a deploy target for a different branch
+Specify a deploy target for a different branch
 
 ```
 deployer add_webhook --repo=github.com/user/project --branch=dev \

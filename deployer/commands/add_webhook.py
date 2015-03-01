@@ -17,6 +17,7 @@ def add_webhook(ctx, repo, branch, access_token, deploy_target):
     'repo': repo,
     'branch': branch,
     'deploy_target': deploy_target,
+    'access_token': access_token,
   }
   response = rpc.call(ctx, 'GrowService.AddWebhook', data)
   if response.json().get('result', {}).get('success'):

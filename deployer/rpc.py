@@ -36,7 +36,7 @@ class JsonRpcHandler(webapp2.RequestHandler):
         result = method(service, **params)
         self.write_json(result=result)
     except Exception as e:
-      logger.error(e)
+      logger.exception(e)
       self.response.status_code = 500
       self.write_json(error=str(e))
 
@@ -58,7 +58,10 @@ def call(ctx, method, request):
   if host == '0.0.0.0':
     host = 'localhost'
   port = ctx.obj['PORT']
-  url = 'http://{}:{}/_/rpc'.format(host, port)
+  if host.startswith('http'):
+    url = '{}:{}/_/rpc'.format(host, port)
+  else:
+    url = 'http://{}:{}/_/rpc'.format(host, port)
   headers = {
       'Content-Type': 'application/json',
   }

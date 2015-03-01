@@ -11,6 +11,7 @@ import click
 import git
 import webapp2
 
+from deployer import config
 from deployer import logger
 from deployer import rpc
 from paste import httpserver
@@ -20,30 +21,6 @@ __all__ = ('start',)
 
 class Error(Exception):
   pass
-
-
-def get_webhooks():
-  config_dir = os.path.expanduser('~/.deployer')
-  if not os.path.exists(config_dir):
-    os.mkdir(config_dir)
-  webhooks_file_path = os.path.join(config_dir, 'webhooks.json')
-  webhooks = []
-  if os.path.exists(webhooks_file_path):
-    with open(webhooks_file_path) as webhooks_file:
-      try:
-        webhooks = json.load(webhooks_file)['webhooks']
-      except ValueError:
-        pass
-  return webhooks
-
-
-def set_webhooks(webhooks):
-  config_dir = os.path.expanduser('~/.deployer')
-  if not os.path.exists(config_dir):
-    os.mkdir(config_dir)
-  webhooks_file_path = os.path.join(config_dir, 'webhooks.json')
-  with open(webhooks_file_path, 'w') as webhooks_file:
-    json.dump({'webhooks': webhooks}, webhooks_file)
 
 
 class GrowService(object):
@@ -69,7 +46,7 @@ class GrowService(object):
     tmp_dir = tempfile.mkdtemp(prefix='grow-')
     try:
       # Clone the repo.
-      logger.info('cloning pod')
+      logger.info('cloning %s', repo)
       if access_token:
         clone_url = 'https://{}@github.com/{}.git'.format(
             access_token, repo)
@@ -82,17 +59,20 @@ class GrowService(object):
       # Checkout the branch and/or commit to deploy.
       git_repo = git.Git(pod_path)
       if branch != 'master':
+        logger.info('checking out branch %s', branch)
         git_repo.checkout(branch)
       if commit_id:
         git_repo.checkout(commit_id)
 
       # Run grow deploy.
-      logger.info('deploying pod')
+      logger.info('running `grow deploy %s`', deploy_target)
       ret_code = subprocess.call(
           ['grow', 'deploy', '--confirm', deploy_target, pod_path])
       if ret_code != 0:
         logger.info('deploy failed')
         return {'success': False}
+      else:
+        logger.info('deployed %s', repo)
     finally:
       logger.info('removing %s', tmp_dir)
       shutil.rmtree(tmp_dir)
@@ -104,14 +84,14 @@ class GrowService(object):
     logger.info('adding webhook')
     if host != 'github':
       raise Error('Only host="github" is currently supported.')
-    webhooks = get_webhooks()
+    webhooks = config.get('webhooks') or []
     webhooks.append({
         'repo': repo,
         'branch': branch,
         'access_token': access_token,
         'deploy_target': deploy_target,
     })
-    set_webhooks(webhooks)
+    config.set('webhooks', webhooks)
     return {'success': True}
 
 
@@ -134,7 +114,7 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
     branch = os.path.basename(data['ref'])
 
     grow_service = rpc.get_service('GrowService')
-    webhooks = get_webhooks()
+    webhooks = config.get('webhooks')
     for webhook in webhooks:
       if webhook.get('repo') == repo and webhook.get('branch') == branch:
         deploy_target = webhook.get('deploy_target') or 'default'

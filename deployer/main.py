@@ -7,6 +7,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import click
+from deployer import config
 from deployer import commands
 from deployer import logger
 
@@ -16,6 +17,12 @@ from deployer import logger
 @click.option('--port', default=8880, envvar='DEPLOYER_PORT')
 @click.pass_context
 def cli(ctx, host, port):
+  config_flags = config.get('flags')
+  if 'host' in config_flags:
+    host = config_flags['host']
+  if 'port' in config_flags:
+    port = config_flags['port']
+
   ctx.obj['HOST'] = host
   ctx.obj['PORT'] = port
 
