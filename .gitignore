@@ -1,1 +1,3 @@
 **/*.pyc
+deployer.egg-info
+venv

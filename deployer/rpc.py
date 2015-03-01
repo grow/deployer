@@ -3,6 +3,7 @@
 """Module for handling RPCs."""
 
 import json
+import requests
 import webapp2
 
 _services = {}
@@ -48,3 +49,19 @@ def register_service(name, service):
 
 def get_service(name):
   return _services.get(name)
+
+
+def call(ctx, method, request):
+  host = ctx.obj['HOST']
+  if host == '0.0.0.0':
+    host = 'localhost'
+  port = ctx.obj['PORT']
+  url = 'http://{}:{}/_/rpc'.format(host, port)
+  headers = {
+      'Content-Type': 'application/json',
+  }
+  payload = json.dumps({
+      'method': method,
+      'params': [request],
+  })
+  return requests.post(url, headers=headers, data=payload)
