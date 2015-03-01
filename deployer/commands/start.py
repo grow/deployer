@@ -75,7 +75,7 @@ class GrowService(object):
       # Run grow deploy.
       logger.info('running `grow deploy %s`', deploy_target)
       ret_code = subprocess.call(
-          ['grow', 'deploy', '--confirm', deploy_target, pod_path])
+          ['grow', 'deploy', '-f', deploy_target, pod_path])
       if ret_code != 0:
         logger.info('deploy failed')
         return {'success': False}
