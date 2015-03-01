@@ -5,6 +5,7 @@
 import json
 import requests
 import webapp2
+from deployer import logger
 
 _services = {}
 
@@ -35,6 +36,7 @@ class JsonRpcHandler(webapp2.RequestHandler):
         result = method(service, **params)
         self.write_json(result=result)
     except Exception as e:
+      logger.error(e)
       self.response.status_code = 500
       self.write_json(error=str(e))
 

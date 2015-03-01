@@ -19,7 +19,7 @@ def add_webhook(ctx, repo, branch, access_token, deploy_target):
     'deploy_target': deploy_target,
   }
   response = rpc.call(ctx, 'GrowService.AddWebhook', data)
-  if response.json().get('result').get('success'):
+  if response.json().get('result', {}).get('success'):
     click.echo('success')
   else:
     click.echo('failed')

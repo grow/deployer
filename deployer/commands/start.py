@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import os
 import shutil
 import subprocess
@@ -19,6 +20,30 @@ __all__ = ('start',)
 
 class Error(Exception):
   pass
+
+
+def get_webhooks():
+  config_dir = os.path.expanduser('~/.deployer')
+  if not os.path.exists(config_dir):
+    os.mkdir(config_dir)
+  webhooks_file_path = os.path.join(config_dir, 'webhooks.json')
+  webhooks = []
+  if os.path.exists(webhooks_file_path):
+    with open(webhooks_file_path) as webhooks_file:
+      try:
+        webhooks = json.load(webhooks_file)['webhooks']
+      except ValueError:
+        pass
+  return webhooks
+
+
+def set_webhooks(webhooks):
+  config_dir = os.path.expanduser('~/.deployer')
+  if not os.path.exists(config_dir):
+    os.mkdir(config_dir)
+  webhooks_file_path = os.path.join(config_dir, 'webhooks.json')
+  with open(webhooks_file_path, 'w') as webhooks_file:
+    json.dump({'webhooks': webhooks}, webhooks_file)
 
 
 class GrowService(object):
@@ -77,7 +102,16 @@ class GrowService(object):
       deploy_target='default'):
     """Adds a webhook listener that triggers a deploy on push."""
     logger.info('adding webhook')
-    # TODO(stevenle): impl.
+    if host != 'github':
+      raise Error('Only host="github" is currently supported.')
+    webhooks = get_webhooks()
+    webhooks.append({
+        'repo': repo,
+        'branch': branch,
+        'access_token': access_token,
+        'deploy_target': deploy_target,
+    })
+    set_webhooks(webhooks)
     return {'success': True}
 
 
@@ -88,16 +122,25 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 
     # Verify signature.
     if not self.is_signature_valid():
+      logger.info('invalid github webhook signature')
       self.write_json(success=False)
       return
 
     data = json.loads(self.request.body)
+    repo = data['repository']['url'][8:]  # Remove "https://" from the url.
+
     # The branch name can be derived from the last part of the "ref", e.g.:
     # refs/head/<branch name>.
     branch = os.path.basename(data['ref'])
 
     grow_service = rpc.get_service('GrowService')
-    # TODO(stevenle): impl.
+    webhooks = get_webhooks()
+    for webhook in webhooks:
+      if webhook.get('repo') == repo and webhook.get('branch') == branch:
+        deploy_target = webhook.get('deploy_target') or 'default'
+        access_token = webhook.get('access_token')
+        grow_service.Deploy(repo, host='github', branch=branch,
+            access_token=access_token, deploy_target=deploy_target)
 
   def is_signature_valid(self):
     header = self.request.headers.get('X-Hub-Signature', None)
@@ -124,9 +167,9 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 def start(ctx):
   rpc.register_service('GrowService', GrowService)
   app = webapp2.WSGIApplication([
-      ('/_/github/webhook', github.GitHubWebhookHandler),
+      ('/_/github/webhook', GitHubWebhookHandler),
       ('/_/rpc', rpc.JsonRpcHandler),
-  ], debug=False)
+  ], debug=True)
 
   host = ctx.obj['HOST']
   port = ctx.obj['PORT']
