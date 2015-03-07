@@ -12,6 +12,7 @@ import tempfile
 
 import click
 import git
+import requests
 import webapp2
 
 from deployer import config
@@ -39,8 +40,6 @@ class GrowService(object):
       branch: The git branch to deploy from. Defaults to master.
       commit_id: If provided, deploys a particular commit. Otherwise, HEAD is
           deployed.
-      access_token: OAuth2 access token. Required for private
-          repos.
       deploy_target: The grow deployment target.
     """
     self.deploy(repo, host=host, branch=branch, commit_id=commit_id,
@@ -51,10 +50,12 @@ class GrowService(object):
     if host != 'github':
       raise Error('Only host="github" is currently supported.')
 
+
     tmp_dir = tempfile.mkdtemp(prefix='grow-')
     try:
       # Clone the repo.
       logger.info('cloning %s', repo)
+      access_token = config.get('github', default={}).get('access_token')
       if access_token:
         clone_url = 'https://{}@github.com/{}.git'.format(
             access_token, repo)
@@ -85,24 +86,47 @@ class GrowService(object):
       logger.info('removing %s', tmp_dir)
       shutil.rmtree(tmp_dir)
 
-  @rpc.RpcMethod
-  def AddWebhook(self, repo, host='github', branch='master', access_token=None,
-      deploy_target='default', webhook_secret=None):
-    """Adds a webhook listener that triggers a deploy on push."""
-    logger.info('adding webhook')
-    if host != 'github':
-      raise Error('Only host="github" is currently supported.')
-    webhooks = config.get('webhooks') or []
-    webhooks.append({
-        'host': host,
-        'repo': repo,
-        'branch': branch,
-        'access_token': access_token,
-        'deploy_target': deploy_target,
-        'webhook_secret': webhook_secret,
+
+class GitHubAuthHandler(webapp2.RequestHandler):
+
+  def get(self):
+    self.response.headers['Content-Type'] = 'text/plain'
+
+    credentials = config.get('github', default={})
+    client_id = credentials.get('client_id')
+    client_secret = credentials.get('client_secret')
+    if not (client_id and client_secret):
+      self.response.write('failed: client_id and client_secret not set')
+      return
+
+    code = self.request.GET.get('code')
+    # TODO(stevenle): get host/port from ctx.
+    redirect_uri = 'http://localhost:8880/_/github/auth'
+    payload = json.dumps({
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'code': code,
+        'redirect_uri': redirect_uri,
     })
-    config.set('webhooks', webhooks)
-    return {'success': True}
+
+    token_url = 'https://github.com/login/oauth/access_token'
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+
+    logger.info('requesting access token...')
+    github_response = requests.post(token_url, headers=headers, data=payload)
+
+    if github_response.status_code == requests.codes.ok:
+      logger.info('received access token')
+      access_token = github_response.json().get('access_token')
+      credentials['access_token'] = access_token
+      config.set('github', credentials)
+      self.response.write('success')
+    else:
+      logger.info('failed to request access token: %s', github_response.text)
+      self.response.write('failed')
 
 
 class GitHubWebhookHandler(webapp2.RequestHandler):
@@ -156,6 +180,7 @@ class GitHubWebhookHandler(webapp2.RequestHandler):
 def start(ctx):
   rpc.register_service('GrowService', GrowService())
   app = webapp2.WSGIApplication([
+      ('/_/github/auth', GitHubAuthHandler),
       ('/_/github/webhook', GitHubWebhookHandler),
       ('/_/rpc', rpc.JsonRpcHandler),
   ], debug=True)

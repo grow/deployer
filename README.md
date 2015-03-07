@@ -11,7 +11,6 @@ Deployer is a service to deploy grow sites.
 sudo python setup.py install
 ```
 
-
 ### Start the server
 
 ```
@@ -24,7 +23,13 @@ Using a different port:
 deployer --port=9999 start
 ```
 
-### Listen for changes on a GitHub repo and trigger a grow deploy
+### Authenticate
+
+```
+deployer auth --client_id=$GITHUB_CLIENT_ID --client_secret=$GITHUB_SECRET
+```
+
+### Add a webhook to trigger a grow deploy when code changes
 
 ```
 deployer add_webhook --repo=user/project --deploy_target=default

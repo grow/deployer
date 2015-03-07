@@ -38,6 +38,7 @@ def main():
   logger.init()
 
   cli.add_command(commands.add_webhook)
+  cli.add_command(commands.auth)
   cli.add_command(commands.start)
   cli.add_command(version)
   cli(obj={})

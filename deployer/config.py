@@ -9,8 +9,8 @@ import yaml
 CONFIG_PATH = '~/.deployer/config.yaml'
 
 
-def get(key):
-  return get_all().get(key)
+def get(key, default=None):
+  return get_all().get(key, default)
 
 
 def set(key, value):

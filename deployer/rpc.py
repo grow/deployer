@@ -58,10 +58,9 @@ def call(ctx, method, request):
   if host == '0.0.0.0':
     host = 'localhost'
   port = ctx.obj['PORT']
-  if host.startswith('http'):
-    url = '{}:{}/_/rpc'.format(host, port)
-  else:
-    url = 'http://{}:{}/_/rpc'.format(host, port)
+  url = '{}:{}/_/rpc'.format(host, port)
+  if not host.startswith('http'):
+    url = 'http://' + url
   headers = {
       'Content-Type': 'application/json',
   }
